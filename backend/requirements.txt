@@ -1,7 +1,7 @@
 Django==4.2.5
 djangorestframework==3.15.2
-scrypt==0.8.18
-selenium==3.141.0
+scrypt==0.9.4
+selenium==4.14.0
 PyJWT==2.7.0
 django-cors-headers==3.7.0
 drf-spectacular[sidecar]==0.27.2
