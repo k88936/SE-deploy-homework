@@ -1,1 +1,50 @@
-# TODO: 补充docker compose配置文件
+services:
+
+  mysql:
+      image: mysql:8.1
+      container_name: mysql
+      command: ["mysqld", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+      environment:
+        - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+        - MYSQL_DATABASE=thss
+        - TZ=Asia/Shanghai
+      volumes:
+        - /home/ubuntu/mysql/:/var/lib/mysql
+      healthcheck:
+        test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+      networks:
+        - backend_net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app
+    environment:
+      - DJANGO_SETTINGS_MODULE=app.settings_prod
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - backend_net
+      - frontend_net
+
+  nginx:
+    build:
+      context: ..
+      dockerfile: backend/nginx/Dockerfile
+    container_name: nginx
+    depends_on:
+      - app
+    ports:
+      - "8000:8000"
+    networks:
+      - frontend_net
+
+networks:
+    backend_net:
+    frontend_net:
