@@ -7,8 +7,30 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# System deps for mysqlclient and pillow etc.
-RUN apt-get update \
+# Switch Debian apt sources to Tsinghua mirrors for faster downloads in CN
+# Debian (slim) uses deb.debian.org and security.debian.org by default
+# Replace them before running apt-get update. Handle both sources.list and new-style debian.sources when present.
+RUN set -eux; \
+		if [ -f /etc/apt/sources.list ]; then \
+			sed -i -e 's|http://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+						 -e 's|https://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+						 -e 's|http://security.debian.org|https://mirrors.tuna.tsinghua.edu.cn/debian-security|g' \
+						 -e 's|https://security.debian.org|https://mirrors.tuna.tsinghua.edu.cn/debian-security|g' /etc/apt/sources.list; \
+		fi; \
+		if [ -d /etc/apt/sources.list.d ]; then \
+			find /etc/apt/sources.list.d -type f -name '*.list' -print0 | xargs -0 -r sed -i \
+				-e 's|http://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+				-e 's|https://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+				-e 's|http://security.debian.org|https://mirrors.tuna.tsinghua.edu.cn/debian-security|g' \
+				-e 's|https://security.debian.org|https://mirrors.tuna.tsinghua.edu.cn/debian-security|g' || true; \
+		fi; \
+		if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+			sed -i -e 's|http://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+						 -e 's|https://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' \
+						 -e 's|http://security.debian.org|https://mirrors.tuna.tsinghua.edu.cn/debian-security|g' \
+						 -e 's|https://security.debian.org|https://mirrors.tuna.tsinghua.edu.cn/debian-security|g' /etc/apt/sources.list.d/debian.sources || true; \
+		fi; \
+		apt-get update \
 	&& apt-get install -y --no-install-recommends \
 	   build-essential \
 	   default-libmysqlclient-dev \
@@ -18,7 +40,9 @@ RUN apt-get update \
 
 # Install python deps
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Configure pip to use TUNA PyPI mirror for faster installs
+RUN printf "[global]\nindex-url = https://pypi.tuna.tsinghua.edu.cn/simple\ntrusted-host = pypi.tuna.tsinghua.edu.cn\n" > /etc/pip.conf \
+	&& pip install --no-cache-dir -r requirements.txt
 
 # Copy project
 COPY . .
